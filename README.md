@@ -287,7 +287,7 @@ If Google AI is not configured, unavailable, or rate limited, the backend return
 - Satellite-first emergency map with optional Apple MapKit JS
 - Optional MongoDB Atlas live incident layer for official alerts from the last 7 days
 - Location search when creating reports, with address, latitude, and longitude kept editable
-- Randomized demo data batches with varied counts, addresses, locations, descriptions, and urgency levels
+- Emergency-focused demo data with hazards, access issues, medical needs, shortages, shelter capacity, and responder updates
 - Category, urgency, and status filters
 - Report list view
 - Timeline view
@@ -328,15 +328,6 @@ If Google AI is not configured, unavailable, or rate limited, the backend return
 - Conflict handling for edited reports
 - Richer trust scoring and report provenance
 
-## Team Role Breakdown
-
-- Frontend lead: React pages, map UX, IndexedDB storage, responsive UI
-- Backend lead: FastAPI routes, SQLite schema, sync protocol, WebSocket broadcasts
-- Sync/networking lead: LAN testing, future Bluetooth/Wi-Fi Direct/Raspberry Pi/LoRa transport adapters
-- Product/design lead: emergency workflow, categories, urgency/status language, field usability
-- QA lead: backend tests, multi-window sync tests, offline/reconnect scenarios
-- Documentation lead: setup guide, demo script, screenshots, future roadmap
-
 ## Tests
 
 Backend tests cover report creation, duplicate ID prevention, sync missing reports, confirming a report, and marking a report resolved:
@@ -348,10 +339,32 @@ pytest
 
 ## Screenshots
 
-Add screenshots here after running the app locally:
+### Dashboard Overview
 
-- Dashboard
-- Emergency Map
-- Create Report
-- Timeline
-- Node Status
+![Dashboard overview](docs/screenshots/dashboard-overview.png)
+
+### Dashboard Report Cards
+
+![Dashboard latest reports](docs/screenshots/dashboard-latest-reports.png)
+
+![Dashboard report details](docs/screenshots/dashboard-report-details.png)
+
+![Report guidance and comments](docs/screenshots/report-guidance-and-comments.png)
+
+### Emergency Map
+
+![Map live incidents overview](docs/screenshots/map-live-incidents-overview.png)
+
+![Map live incident popup](docs/screenshots/map-live-incident-popup.png)
+
+### Create Report
+
+![Create report form](docs/screenshots/create-report.png)
+
+### Timeline
+
+![Timeline view](docs/screenshots/timeline.png)
+
+### Legal Disclaimer
+
+![Legal disclaimer page](docs/screenshots/legal-disclaimer.png)
