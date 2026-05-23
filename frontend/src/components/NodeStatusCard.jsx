@@ -1,16 +1,28 @@
-import { Activity, Database, RadioTower, UsersRound } from "lucide-react";
+import { Activity, Cloud, Database, RadioTower, RefreshCw, UsersRound } from "lucide-react";
 
-export default function NodeStatusCard({ nodeStatus, lastSyncTime }) {
+export default function NodeStatusCard({ nodeStatus, lastSyncTime, syncSummary, pendingSyncCount = 0, syncNow }) {
   const status = nodeStatus || {};
+  const sync = syncSummary || {
+    status: "ready",
+    label: lastSyncTime ? "Synced" : "Ready",
+    detail: lastSyncTime ? new Date(lastSyncTime).toLocaleTimeString() : "Local save enabled"
+  };
 
   return (
     <section className="node-card">
       <div className="node-card-header">
-        <RadioTower size={26} />
-        <div>
-          <p className="eyebrow">Local Network Node</p>
-          <h2>{status.node_name || "RescueMesh Local Node"}</h2>
+        <div className="node-card-heading">
+          <RadioTower size={26} />
+          <div>
+            <p className="eyebrow">Response Node</p>
+            <h2>{status.node_name || "RescueMe Local Node"}</h2>
+          </div>
         </div>
+        {syncNow && (
+          <button className="secondary compact-button" onClick={syncNow} disabled={sync.status === "syncing"}>
+            <RefreshCw size={15} /> {sync.status === "syncing" ? "Syncing" : "Sync Now"}
+          </button>
+        )}
       </div>
       <div className="status-grid">
         <div>
@@ -32,6 +44,12 @@ export default function NodeStatusCard({ nodeStatus, lastSyncTime }) {
           <Activity size={20} />
           <span>Last Sync</span>
           <strong>{lastSyncTime ? new Date(lastSyncTime).toLocaleTimeString() : "Not yet"}</strong>
+        </div>
+        <div className={`sync-status-tile sync-${sync.status}`}>
+          <Cloud size={20} />
+          <span>Sync Queue</span>
+          <strong>{sync.label}</strong>
+          <small>{pendingSyncCount ? `${pendingSyncCount} queued` : sync.detail}</small>
         </div>
       </div>
     </section>

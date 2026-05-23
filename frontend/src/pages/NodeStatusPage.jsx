@@ -7,7 +7,7 @@ export default function NodeStatusPage({ mesh }) {
     <div className="page-grid">
       <section className="section-header">
         <div>
-          <p className="eyebrow">RescueMesh Node</p>
+          <p className="eyebrow">RescueMe Node</p>
           <h1>Node Status</h1>
         </div>
         <button className="primary" onClick={mesh.refreshNodeStatus}>
@@ -17,10 +17,10 @@ export default function NodeStatusPage({ mesh }) {
       <NodeStatusCard {...mesh} />
       <SecurityAccessPanel />
       <section className="info-panel">
-        <h2>Online Response Node</h2>
+        <h2>Hybrid Sync</h2>
         <p>
-          The FastAPI backend acts as the active RescueMesh response node for this MVP. Browsers connect to this node, exchange reports, and receive WebSocket broadcasts
-          when another client adds or updates an incident.
+          Reports, confirmations, resolutions, and comments are saved in this browser first. When the FastAPI node is reachable, RescueMe uploads queued changes, downloads
+          missing reports, and uses WebSockets for live updates from other clients.
         </p>
       </section>
     </div>

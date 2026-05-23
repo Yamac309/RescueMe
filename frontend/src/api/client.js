@@ -17,8 +17,8 @@ function getApiBaseUrl() {
   return origin;
 }
 
-const ADMIN_TOKEN_KEY = "rescuemesh-admin-token";
-const RESPONDER_TOKEN_KEY = "rescuemesh-responder-token";
+const ADMIN_TOKEN_KEY = "rescueme-admin-token";
+const RESPONDER_TOKEN_KEY = "rescueme-responder-token";
 
 function getStoredToken(key) {
   if (typeof localStorage === "undefined") return "";

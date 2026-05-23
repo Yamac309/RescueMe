@@ -5,6 +5,7 @@ import hashlib
 import os
 from typing import Any
 
+import certifi
 import httpx
 
 try:
@@ -18,7 +19,7 @@ except ImportError:  # pragma: no cover - exercised when optional dependency is 
 
 
 DEFAULT_ALERTS_URL = "https://api.weather.gov/alerts"
-DEFAULT_USER_AGENT = "RescueMesh/0.1 live incident importer"
+DEFAULT_USER_AGENT = "RescueMe/0.1 live incident importer"
 MAX_DAYS = 7
 MAX_LIMIT = 200
 
@@ -63,7 +64,7 @@ def mongo_config() -> dict:
     return {
         "configured": bool(os.getenv("MONGODB_URI", "").strip()),
         "driver_installed": MongoClient is not None,
-        "database": os.getenv("MONGODB_DATABASE", "rescuemesh"),
+        "database": os.getenv("MONGODB_DATABASE", "rescueme"),
         "collection": os.getenv("MONGODB_LIVE_INCIDENTS_COLLECTION", "live_incidents"),
     }
 
@@ -91,6 +92,7 @@ def _collection():
     if _mongo_client is None or _mongo_uri != uri:
         _mongo_client = MongoClient(
             uri,
+            tlsCAFile=certifi.where(),
             serverSelectionTimeoutMS=timeout_ms,
             connectTimeoutMS=timeout_ms,
             socketTimeoutMS=timeout_ms,
@@ -98,7 +100,7 @@ def _collection():
         _mongo_uri = uri
         _indexes_ready = False
 
-    database_name = os.getenv("MONGODB_DATABASE", "rescuemesh")
+    database_name = os.getenv("MONGODB_DATABASE", "rescueme")
     collection_name = os.getenv("MONGODB_LIVE_INCIDENTS_COLLECTION", "live_incidents")
     collection = _mongo_client[database_name][collection_name]
 

@@ -1,19 +1,19 @@
 services:
   - type: web
-    name: rescuemesh
+    name: rescueme
     runtime: docker
     plan: free
     autoDeploy: true
     envVars:
-      - key: RESCUEMESH_PUBLIC_MODE
+      - key: RESCUEME_PUBLIC_MODE
         value: "true"
-      - key: RESCUEMESH_NODE_NAME
-        value: RescueMesh Public Node
-      - key: RESCUEMESH_ADMIN_TOKEN
+      - key: RESCUEME_NODE_NAME
+        value: RescueMe Public Node
+      - key: RESCUEME_ADMIN_TOKEN
         sync: false
-      - key: RESCUEMESH_RESPONDER_TOKEN
+      - key: RESCUEME_RESPONDER_TOKEN
         sync: false
-      - key: RESCUEMESH_REQUIRE_HTTPS
+      - key: RESCUEME_REQUIRE_HTTPS
         value: "true"
-      - key: RESCUEMESH_DISABLE_RATE_LIMITING
+      - key: RESCUEME_DISABLE_RATE_LIMITING
         value: "false"

@@ -2,12 +2,12 @@ services:
   backend:
     build: ./backend
     environment:
-      RESCUEMESH_NODE_NAME: RescueMesh Docker Node
-      RESCUEMESH_DB_PATH: /data/rescuemesh.db
+      RESCUEME_NODE_NAME: RescueMe Docker Node
+      RESCUEME_DB_PATH: /data/rescueme.db
     ports:
       - "8000:8000"
     volumes:
-      - rescuemesh-data:/data
+      - rescueme-data:/data
 
   frontend:
     build: ./frontend
@@ -19,4 +19,4 @@ services:
       - backend
 
 volumes:
-  rescuemesh-data:
+  rescueme-data:

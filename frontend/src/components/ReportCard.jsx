@@ -1,4 +1,4 @@
-import { CheckCircle2, EyeOff, Gauge, MapPin, ShieldCheck, Timer } from "lucide-react";
+import { CheckCircle2, EyeOff, Gauge, MapPin, ShieldCheck, Timer, UploadCloud } from "lucide-react";
 import { URGENCY_CLASS } from "../utils/constants";
 import { calculateConfidence, getFreshness, getVerificationLabel } from "../utils/reportUtils";
 import AiIncidentGuidance from "./AiIncidentGuidance";
@@ -25,7 +25,13 @@ export default function ReportCard({
   const verificationLabel = getVerificationLabel(report, allReports);
   const ageClass = `age-${freshness.label.toLowerCase()}`;
   const isResolved = report.status === "Resolved";
-  const isCritical = report.urgency === "Critical";
+  const syncState = report.sync_state || "synced";
+  const syncLabel =
+    syncState === "pending"
+      ? "Upload pending"
+      : syncState === "retrying" || syncState === "failed"
+        ? "Retry queued"
+        : "Synced";
 
   function confirmIgnore() {
     const shouldIgnore = window.confirm(
@@ -75,6 +81,11 @@ export default function ReportCard({
         <span><CheckCircle2 size={13} /> {report.confirmation_count || 0} confirmation{report.confirmation_count !== 1 ? "s" : ""}</span>
         <span><Gauge size={13} /> Confidence: {confidence}%</span>
         <span><Timer size={13} /> Age: {freshness.label}</span>
+        {syncState !== "synced" && (
+          <span className={`sync-state-pill sync-${syncState}`}>
+            <UploadCloud size={13} /> {syncLabel}
+          </span>
+        )}
       </div>
 
       {!compact && <AiIncidentGuidance report={report} />}

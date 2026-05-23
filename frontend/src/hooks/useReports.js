@@ -18,18 +18,24 @@ import {
 } from "../api/client";
 import {
   clearIgnoredReports,
+  clearComments,
   deleteAllReports as deleteAllLocalReports,
+  deleteCommentsByReportIds,
   deleteIgnoredReportIds,
   deleteDemoReports as deleteLocalDemoReports,
   deleteQueuedAction,
   deleteReportsByIds,
   deleteReportsByTitles,
+  getAllComments,
   getAllReports,
+  getCommentsByReportId,
   getDeviceId,
   getIgnoredReportIds,
   getQueuedActions,
   ignoreReport,
   queueAction,
+  saveComment,
+  saveComments,
   saveReport,
   saveReports
 } from "../storage/indexedDb";
@@ -54,11 +60,52 @@ function getVisibleReports(candidateReports, ignoredIds = []) {
   return sortByNewest(candidateReports.filter((report) => !ignored.has(report.report_id)));
 }
 
+function normalizeCommentForState(comment) {
+  return {
+    ...comment,
+    body: comment.body || "",
+    image_data_url: comment.image_data_url || "",
+    sync_state: comment.sync_state || "synced"
+  };
+}
+
+function commentForApi(comment) {
+  return {
+    comment_id: comment.comment_id,
+    report_id: comment.report_id,
+    body: comment.body || "",
+    image_data_url: comment.image_data_url || "",
+    device_id: comment.device_id,
+    timestamp: comment.timestamp
+  };
+}
+
+function mergeCommentLists(...commentLists) {
+  const byId = new Map();
+  commentLists.flat().forEach((comment) => {
+    const normalized = normalizeCommentForState(comment);
+    byId.set(normalized.comment_id, {
+      ...(byId.get(normalized.comment_id) || {}),
+      ...normalized
+    });
+  });
+  return [...byId.values()].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+}
+
+function groupCommentsByReportId(comments = []) {
+  return comments.reduce((groups, comment) => {
+    const normalized = normalizeCommentForState(comment);
+    groups[normalized.report_id] = mergeCommentLists(groups[normalized.report_id] || [], [normalized]);
+    return groups;
+  }, {});
+}
+
 export function useReports() {
   const [reports, setReports] = useState([]);
   const [deviceId] = useState(() => getDeviceId());
   const [lastSyncTime, setLastSyncTime] = useState(null);
   const [backendOnline, setBackendOnline] = useState(false);
+  const [syncStatus, setSyncStatus] = useState("ready");
   const [nodeStatus, setNodeStatus] = useState(null);
   const [ignoredReportIds, setIgnoredReportIds] = useState([]);
   const [commentsByReportId, setCommentsByReportId] = useState({});
@@ -73,6 +120,41 @@ export function useReports() {
   const syncPausedRef = useRef(false);
   const syncNowRef = useRef(null);
   const reportIdsKey = useMemo(() => reports.map((report) => report.report_id).sort().join("|"), [reports]);
+  const pendingSyncCount = useMemo(() => {
+    const pendingReports = reports.filter((report) => (report.sync_state || "synced") !== "synced").length;
+    const pendingComments = Object.values(commentsByReportId)
+      .flat()
+      .filter((comment) => (comment.sync_state || "synced") !== "synced").length;
+    return pendingReports + pendingComments;
+  }, [commentsByReportId, reports]);
+  const syncSummary = useMemo(() => {
+    if (syncStatus === "syncing") {
+      return {
+        status: "syncing",
+        label: "Syncing",
+        detail: pendingSyncCount ? `${pendingSyncCount} item${pendingSyncCount === 1 ? "" : "s"} queued` : "Checking for updates"
+      };
+    }
+    if (pendingSyncCount > 0) {
+      return {
+        status: backendOnline ? "pending" : "retrying",
+        label: backendOnline ? "Pending upload" : "Saved locally",
+        detail: `${pendingSyncCount} item${pendingSyncCount === 1 ? "" : "s"} waiting for the node`
+      };
+    }
+    if (lastSyncTime) {
+      return {
+        status: "synced",
+        label: "Synced",
+        detail: new Date(lastSyncTime).toLocaleTimeString()
+      };
+    }
+    return {
+      status: "ready",
+      label: "Ready",
+      detail: "Local save enabled"
+    };
+  }, [backendOnline, lastSyncTime, pendingSyncCount, syncStatus]);
 
   useEffect(() => {
     reportsRef.current = reports;
@@ -104,6 +186,7 @@ export function useReports() {
   const removeFromState = useCallback(async (reportIds) => {
     if (!reportIds.length) return;
     await deleteReportsByIds(reportIds);
+    await deleteCommentsByReportIds(reportIds);
     await deleteIgnoredReportIds(reportIds);
     setIgnoredReportIds((currentIds) => {
       const nextIds = currentIds.filter((reportId) => !reportIds.includes(reportId));
@@ -119,11 +202,12 @@ export function useReports() {
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([getAllReports(), getIgnoredReportIds()])
-      .then(([localReports, ignoredIds]) => {
+    Promise.all([getAllReports(), getIgnoredReportIds(), getAllComments()])
+      .then(([localReports, ignoredIds, localComments]) => {
         if (cancelled) return;
         setIgnoredReportIds((currentIds) => (sameStringList(currentIds, ignoredIds) ? currentIds : ignoredIds));
         setReports(getVisibleReports(localReports, ignoredIds));
+        setCommentsByReportId(groupCommentsByReportId(localComments));
       })
       .catch((error) => console.error("Unable to read local storage", error));
     return () => {
@@ -148,11 +232,16 @@ export function useReports() {
     }
 
     Promise.all(
-      reportIds.map((reportId) =>
-        getReportComments(reportId)
-          .then((comments) => [reportId, comments])
-          .catch(() => [reportId, []])
-      )
+      reportIds.map(async (reportId) => {
+        const localComments = await getCommentsByReportId(reportId).catch(() => []);
+        try {
+          const remoteComments = (await getReportComments(reportId)).map((comment) => ({ ...comment, sync_state: "synced" }));
+          await saveComments(remoteComments);
+          return [reportId, mergeCommentLists(localComments, remoteComments)];
+        } catch {
+          return [reportId, localComments.map(normalizeCommentForState)];
+        }
+      })
     ).then((entries) => {
       if (cancelled) return;
       setCommentsByReportId((currentComments) => {
@@ -161,7 +250,7 @@ export function useReports() {
           Object.entries(currentComments).filter(([reportId]) => activeReportIds.has(reportId))
         );
         entries.forEach(([reportId, comments]) => {
-          nextComments[reportId] = comments;
+          nextComments[reportId] = mergeCommentLists(nextComments[reportId] || [], comments);
         });
         return nextComments;
       });
@@ -173,13 +262,17 @@ export function useReports() {
   }, [reportIdsKey]);
 
   const mergeCommentIntoState = useCallback((comment) => {
+    const normalizedComment = normalizeCommentForState(comment);
     setCommentsByReportId((currentComments) => {
-      const reportComments = currentComments[comment.report_id] || [];
+      const reportComments = currentComments[normalizedComment.report_id] || [];
       const byId = new Map(reportComments.map((item) => [item.comment_id, item]));
-      byId.set(comment.comment_id, comment);
+      byId.set(normalizedComment.comment_id, {
+        ...(byId.get(normalizedComment.comment_id) || {}),
+        ...normalizedComment
+      });
       return {
         ...currentComments,
-        [comment.report_id]: [...byId.values()].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
+        [normalizedComment.report_id]: [...byId.values()].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
       };
     });
   }, []);
@@ -229,23 +322,42 @@ export function useReports() {
           const updated = await resolveReport(action.report_id);
           await mergeIntoState([updated]);
         }
+        if (action.type === "comment" && action.comment) {
+          const savedComment = await postReportComment(action.report_id, commentForApi(action.comment));
+          const syncedComment = { ...savedComment, sync_state: "synced" };
+          await saveComment(syncedComment);
+          mergeCommentIntoState(syncedComment);
+        }
         await deleteQueuedAction(action.id);
       } catch (error) {
         if (error.status === 404) {
           await deleteQueuedAction(action.id);
           continue;
         }
-        break;
+        if (action.type === "comment" && action.comment) {
+          const retryingComment = { ...action.comment, sync_state: "retrying" };
+          await saveComment(retryingComment);
+          mergeCommentIntoState(retryingComment);
+        }
+        return false;
       }
     }
-  }, [mergeIntoState]);
+    return true;
+  }, [mergeCommentIntoState, mergeIntoState]);
 
   const runSyncCycle = useCallback(async () => {
     if (clearInProgressRef.current || demoRemovalInProgressRef.current) return;
     const localReports = await getAllReports();
+    const localComments = await getAllComments();
+    const queuedActions = await getQueuedActions();
     const knownIds = localReports.map((report) => report.report_id);
+    const hasQueuedLocalWork =
+      queuedActions.length > 0 ||
+      localReports.some((report) => (report.sync_state || "synced") !== "synced") ||
+      localComments.some((comment) => (comment.sync_state || "synced") !== "synced");
 
     try {
+      if (hasQueuedLocalWork) setSyncStatus("syncing");
       if (clearInProgressRef.current || demoRemovalInProgressRef.current) return;
       const response = await syncReports(knownIds, localReports);
       if (clearInProgressRef.current || demoRemovalInProgressRef.current) return;
@@ -256,13 +368,15 @@ export function useReports() {
       const syncedLocal = localReports.map((report) => ({ ...report, sync_state: "synced" }));
       const activeSyncedLocal = syncedLocal.filter((report) => !deletedIds.has(report.report_id));
       await mergeIntoState([...activeSyncedLocal, ...response.missing_reports, ...response.accepted_reports]);
-      await replayQueuedActions();
+      const replayedAllActions = await replayQueuedActions();
       await refreshNodeStatus();
       setBackendOnline(true);
       const syncedAt = new Date();
       setLastSyncTime(syncedAt.toISOString());
+      setSyncStatus(replayedAllActions ? "synced" : "retrying");
     } catch {
       setBackendOnline(false);
+      setSyncStatus("retrying");
     }
   }, [mergeIntoState, refreshNodeStatus, removeFromState, replayQueuedActions]);
 
@@ -358,13 +472,14 @@ export function useReports() {
         reports,
         verificationConfig
       );
+      setSyncStatus("pending");
       await saveReport(locallyVerifiedReport);
       await mergeIntoState([locallyVerifiedReport]);
       try {
         const response = await syncReports([report.report_id], [locallyVerifiedReport]);
         if (response.deleted_report_ids?.includes(report.report_id)) {
           await removeFromState([report.report_id]);
-          throw new Error("This report was already deleted on the RescueMesh Node.");
+          throw new Error("This report was already deleted on the RescueMe Node.");
         }
         await mergeIntoState([
           ...response.accepted_reports,
@@ -374,8 +489,12 @@ export function useReports() {
         await saveReports(serverReports);
         await mergeIntoState(serverReports);
         await refreshNodeStatus();
+        setBackendOnline(true);
+        setLastSyncTime(new Date().toISOString());
+        setSyncStatus("synced");
       } catch (error) {
         console.warn("Report was saved locally but could not sync immediately.", error);
+        setSyncStatus("retrying");
         syncNow();
       }
       return duplicate;
@@ -389,6 +508,7 @@ export function useReports() {
       const locallyVerifiedReports = nextReports.map((report) =>
         estimateLocalVerification({ ...report, sync_state: "pending" }, existingReports, verificationConfig)
       );
+      setSyncStatus("pending");
       await mergeIntoState(locallyVerifiedReports);
       syncNow();
     },
@@ -406,8 +526,10 @@ export function useReports() {
         ...report,
         confirmed_by_device_ids: confirmedBy,
         confirmation_count: localCount,
-        status: localCount >= 2 && report.status !== "Resolved" ? "Confirmed" : report.status
+        status: localCount >= 2 && report.status !== "Resolved" ? "Confirmed" : report.status,
+        sync_state: "pending"
       };
+      setSyncStatus("pending");
       await saveReport(localReport);
       await mergeIntoState([localReport]);
 
@@ -416,9 +538,10 @@ export function useReports() {
         await mergeIntoState([{ ...updated, confirmed_by_device_ids: confirmedBy }]);
       } catch {
         await queueAction({ type: "confirm", report_id: reportId, device_id: deviceId });
+        syncNow();
       }
     },
-    [deviceId, mergeIntoState, reports]
+    [deviceId, mergeIntoState, reports, syncNow]
   );
 
   const resolveLocalReport = useCallback(
@@ -426,18 +549,20 @@ export function useReports() {
       const report = reports.find((item) => item.report_id === reportId);
       if (!report) return;
 
-      const localReport = { ...report, status: "Resolved" };
+      const localReport = { ...report, status: "Resolved", sync_state: "pending" };
+      setSyncStatus("pending");
       await saveReport(localReport);
       await mergeIntoState([localReport]);
 
       try {
         const updated = await resolveReport(reportId);
-      await mergeIntoState([updated]);
-    } catch {
-      await queueAction({ type: "resolve", report_id: reportId });
-    }
-  },
-    [mergeIntoState, reports]
+        await mergeIntoState([updated]);
+      } catch {
+        await queueAction({ type: "resolve", report_id: reportId });
+        syncNow();
+      }
+    },
+    [mergeIntoState, reports, syncNow]
   );
 
   const responderVerifyLocalReport = useCallback(
@@ -487,17 +612,25 @@ export function useReports() {
         body,
         image_data_url: imageDataUrl,
         device_id: deviceId,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        sync_state: "pending"
       };
+      setSyncStatus("pending");
+      await saveComment(comment);
       mergeCommentIntoState(comment);
       try {
-        const savedComment = await postReportComment(reportId, comment);
-        mergeCommentIntoState(savedComment);
+        const savedComment = await postReportComment(reportId, commentForApi(comment));
+        const syncedComment = { ...savedComment, sync_state: "synced" };
+        await saveComment(syncedComment);
+        mergeCommentIntoState(syncedComment);
       } catch (error) {
-        console.error("Unable to save comment", error);
+        await queueAction({ type: "comment", report_id: reportId, comment });
+        console.warn("Comment was saved locally and will sync later.", error);
+        setSyncStatus("retrying");
+        syncNow();
       }
     },
-    [deviceId, mergeCommentIntoState]
+    [deviceId, mergeCommentIntoState, syncNow]
   );
 
   const ignoreLocalReport = useCallback(
@@ -560,6 +693,7 @@ export function useReports() {
     try {
       await deleteAllLocalReports();
       await clearIgnoredReports();
+      await clearComments();
       setCommentsByReportId({});
       const response = await deleteAllReports();
       backendCleared = true;
@@ -568,6 +702,7 @@ export function useReports() {
     } catch (error) {
       await deleteAllLocalReports();
       await clearIgnoredReports();
+      await clearComments();
       setCommentsByReportId({});
       if (error.status === 403) window.alert("Admin token required. Add it on the Node Status page.");
       console.warn(`Cleared ${localReportIds.length} local reports. Node cleanup will need a connection.`);
@@ -593,6 +728,8 @@ export function useReports() {
       deviceId,
       lastSyncTime,
       backendOnline,
+      syncSummary,
+      pendingSyncCount,
       nodeStatus,
       commentsByReportId,
       demoTimeOffsetHours,
@@ -617,6 +754,8 @@ export function useReports() {
       deviceId,
       lastSyncTime,
       backendOnline,
+      syncSummary,
+      pendingSyncCount,
       nodeStatus,
       commentsByReportId,
       demoTimeOffsetHours,

@@ -77,7 +77,7 @@ async def geocode_location(query: str, limit: int = 5) -> list[dict]:
     if len(local_matches) >= safe_limit:
         return local_matches
 
-    if os.getenv("RESCUEMESH_DISABLE_REMOTE_GEOCODING", "").lower() in {"1", "true", "yes"}:
+    if os.getenv("RESCUEME_DISABLE_REMOTE_GEOCODING", "").lower() in {"1", "true", "yes"}:
         return local_matches
 
     try:
@@ -91,7 +91,7 @@ async def geocode_location(query: str, limit: int = 5) -> list[dict]:
                     "addressdetails": 1,
                     "countrycodes": "us",
                 },
-                headers={"User-Agent": "RescueMesh/0.1 emergency-reporting-demo"},
+                headers={"User-Agent": "RescueMe/0.1 emergency-reporting-demo"},
             )
         response.raise_for_status()
         remote_matches = []

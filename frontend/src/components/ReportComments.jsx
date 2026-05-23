@@ -116,6 +116,11 @@ export default function ReportComments({ report, comments = [], deviceId, onAddC
             <span>
               {comment.device_id === deviceId ? "You" : "Anonymous device"} ·{" "}
               {new Date(comment.timestamp).toLocaleString()}
+              {(comment.sync_state || "synced") !== "synced" && (
+                <em className={`comment-sync sync-${comment.sync_state || "pending"}`}>
+                  {comment.sync_state === "retrying" ? "Retry queued" : "Saved locally"}
+                </em>
+              )}
             </span>
           </article>
         ))}

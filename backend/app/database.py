@@ -8,8 +8,8 @@ from .schemas import CommentCreate, ReportCreate
 
 
 def get_db_path() -> Path:
-    default_path = Path(__file__).resolve().parents[1] / "data" / "rescuemesh.db"
-    return Path(os.getenv("RESCUEMESH_DB_PATH", default_path))
+    default_path = Path(__file__).resolve().parents[1] / "data" / "rescueme.db"
+    return Path(os.getenv("RESCUEME_DB_PATH", default_path))
 
 
 def get_connection() -> sqlite3.Connection:

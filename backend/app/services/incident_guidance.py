@@ -14,10 +14,9 @@ GEMINI_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models/{mode
 
 
 def local_guidance(report: IncidentGuidanceRequest, reason: str | None = None) -> dict:
-    should_do, avoid = _local_safety_guidance(report)
     return {
-        "should_do": should_do,
-        "avoid": avoid,
+        "should_do": [],
+        "avoid": [],
         "safety_note": _local_safety_note(reason),
         "source": "local-fallback",
         "model": None,
@@ -75,13 +74,13 @@ async def generate_incident_guidance(report: IncidentGuidanceRequest) -> dict:
     except httpx.RequestError:
         return local_guidance(report, "The backend could not reach Gemini. Check internet access from the server.")
     except (KeyError, TypeError, ValueError, json.JSONDecodeError):
-        # Keep RescueMesh useful during demos even if the AI key, quota, or network is unavailable.
+        # Keep RescueMe useful during demos even if the AI key, quota, or network is unavailable.
         return local_guidance(report, "Gemini returned a response this app could not read. Try again or check the backend logs.")
 
 
 def _build_prompt(report: IncidentGuidanceRequest) -> str:
     return f"""
-You are helping an emergency communication app named RescueMesh.
+You are helping an emergency communication app named RescueMe.
 Generate short, practical, safety-first guidance for this incident report.
 
 Incident:
@@ -115,130 +114,10 @@ def _timeout_seconds() -> float:
     return min(max(configured, 3), MAX_TIMEOUT_SECONDS)
 
 
-def _local_safety_guidance(report: IncidentGuidanceRequest) -> tuple[list[str], list[str]]:
-    category_guidance = {
-        "Need Help": (
-            [
-                "Move to the safest nearby place and share your location with responders.",
-                "Ask nearby trusted people for help while keeping a clear exit route.",
-                "Keep your phone available for calls or messages from emergency services.",
-            ],
-            [
-                "Do not enter unstable buildings or flooded areas to reach someone.",
-                "Do not separate from your group unless a responder directs you.",
-                "Do not share private personal details in public updates.",
-            ],
-        ),
-        "Food": (
-            [
-                "Direct people to the safest pickup point and note any access limits.",
-                "Prioritize children, older adults, and people with medical needs.",
-                "Keep food distribution lines away from traffic and hazards.",
-            ],
-            [
-                "Do not distribute food that may be spoiled or contaminated.",
-                "Do not block emergency vehicle routes around the pickup point.",
-                "Do not promise supply levels that have not been confirmed.",
-            ],
-        ),
-        "Water": (
-            [
-                "Use sealed water first and share the exact pickup location.",
-                "Boil or treat uncertain water when official guidance recommends it.",
-                "Reserve water for drinking, first aid, and essential hygiene.",
-            ],
-            [
-                "Do not drink floodwater or water near damaged infrastructure.",
-                "Do not crowd around a water point if there are safer waiting areas.",
-                "Do not report water as safe unless it has been confirmed.",
-            ],
-        ),
-        "Shelter": (
-            [
-                "Move people toward a stable shelter away from windows and flood paths.",
-                "Share capacity limits, accessibility notes, and entry instructions.",
-                "Keep families and groups together when possible.",
-            ],
-            [
-                "Do not use damaged buildings as shelter.",
-                "Do not block entrances, exits, or responder access points.",
-                "Do not send people into areas with downed power lines or gas smells.",
-            ],
-        ),
-        "First Aid": (
-            [
-                "Call emergency services for severe bleeding, breathing trouble, chest pain, or unconsciousness.",
-                "Keep the injured person still, warm, and away from hazards.",
-                "Use trained first aid help if available and update responders with the location.",
-            ],
-            [
-                "Do not move someone with a possible neck or spine injury unless they are in immediate danger.",
-                "Do not give food or drink to an unconscious or severely injured person.",
-                "Do not attempt advanced care without training.",
-            ],
-        ),
-        "Charging": (
-            [
-                "Use dry, supervised charging areas with clear walking paths.",
-                "Prioritize medical devices and emergency communication devices.",
-                "Limit charging time so more people can use the station.",
-            ],
-            [
-                "Do not use wet outlets, damaged cords, or overloaded power strips.",
-                "Do not leave devices unattended in crowded areas.",
-                "Do not run cords across emergency paths.",
-            ],
-        ),
-        "Blocked Road": (
-            [
-                "Report the exact blockage location and safest alternate route.",
-                "Keep people and vehicles back from debris, wires, and unstable trees.",
-                "Leave room for emergency vehicles and road crews.",
-            ],
-            [
-                "Do not drive around barricades or through debris fields.",
-                "Do not touch downed wires or objects touching them.",
-                "Do not move heavy debris without proper equipment.",
-            ],
-        ),
-        "Dangerous Area": (
-            [
-                "Warn people away from the area and share a safer route.",
-                "Move uphill or upwind if flooding, smoke, gas, or chemicals may be involved.",
-                "Mark the report as confirmed only when a trusted source verifies it.",
-            ],
-            [
-                "Do not enter the area to take photos or check conditions.",
-                "Do not cross floodwater, unstable ground, or taped-off zones.",
-                "Do not spread unconfirmed hazard details as fact.",
-            ],
-        ),
-        "General Update": (
-            [
-                "Keep the update short, specific, and tied to a location.",
-                "Include what changed and when it was observed.",
-                "Refresh the report if conditions change.",
-            ],
-            [
-                "Do not include rumors, private details, or unclear secondhand claims.",
-                "Do not mark the update confirmed without a trusted source.",
-                "Do not duplicate older reports when an update would be clearer.",
-            ],
-        ),
-    }
-    should_do, avoid = category_guidance.get(report.category, category_guidance["General Update"])
-    if report.urgency in {"High", "Critical"}:
-        should_do = [
-            "If anyone is in immediate danger, call emergency services first.",
-            *should_do,
-        ]
-    return _unique_limited(should_do, 5), _unique_limited(avoid, 5)
-
-
 def _local_safety_note(reason: str | None) -> str:
     if reason:
-        return f"{reason} RescueMesh is showing local safety guidance. Follow official responder instructions when available."
-    return "RescueMesh is showing local safety guidance. Follow official responder instructions when available."
+        return f"{reason} Follow official responder instructions when available."
+    return "Gemini guidance is unavailable right now. Follow official responder instructions when available."
 
 
 def _parse_gemini_response(body: dict) -> dict:

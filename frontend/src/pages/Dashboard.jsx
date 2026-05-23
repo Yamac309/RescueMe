@@ -39,19 +39,19 @@ export default function Dashboard({ mesh }) {
       sourceTrustLabel: sourceTrustLabel(report),
     }));
     downloadFile(
-      "rescuemesh-incident-log.json",
+      "rescueme-incident-log.json",
       JSON.stringify(safeReports, null, 2),
       "application/json"
     );
   }
 
   function exportCsv() {
-    downloadFile("rescuemesh-incident-log.csv", toCsv(mesh.reports), "text/csv");
+    downloadFile("rescueme-incident-log.csv", toCsv(mesh.reports), "text/csv");
   }
 
   function clearAllReports() {
     const confirmed = window.confirm(
-      "Clear all reports from this browser and the shared RescueMesh Node?"
+      "Clear all reports from this browser and the shared RescueMe Node?"
     );
     if (confirmed) {
       runAction("clear-all", mesh.clearAllReports);
@@ -165,7 +165,7 @@ export default function Dashboard({ mesh }) {
           />
         ))}
         {!mesh.reports.length && (
-          <p className="empty-state">No reports yet. Create one or load demo data to test sync.</p>
+          <p className="empty-state">No reports yet. Create one or load demo data to test local-first sync.</p>
         )}
       </div>
     </div>

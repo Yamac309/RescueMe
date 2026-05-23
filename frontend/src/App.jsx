@@ -16,7 +16,7 @@ const NAV_LINKS = [
   { to: "/timeline",  icon: <Clock size={17} />,           label: "Timeline" },
   { to: "/node",      icon: <Activity size={17} />,        label: "Node Status" },
   { to: "/responder", icon: <ShieldCheck size={17} />,     label: "Responder" },
-  { to: "/about",     icon: <Info size={17} />,            label: "About" },
+  { to: "/about",     icon: <Info size={17} />,            label: "Legal" },
 ];
 
 function Shell({ mesh }) {
@@ -26,8 +26,7 @@ function Shell({ mesh }) {
         <div className="brand">
           <RadioTower size={26} />
           <div>
-            <strong>RescueMesh</strong>
-            <span>Online response node</span>
+            <strong>RescueMe</strong>
           </div>
         </div>
         <nav>

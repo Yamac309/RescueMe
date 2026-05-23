@@ -11,63 +11,63 @@ export const DEMO_REPORT_TITLES = [
 const DEMO_LOCATIONS = [
   {
     name: "Library",
-    address: "100 Library Walk, RescueMesh Campus",
+    address: "100 Library Walk, RescueMe Campus",
     latitude: 40.7136,
     longitude: -74.0052,
     categories: ["Water", "Shelter", "General Update", "Need Help"]
   },
   {
     name: "Student Center",
-    address: "220 Student Center Plaza, RescueMesh Campus",
+    address: "220 Student Center Plaza, RescueMe Campus",
     latitude: 40.7116,
     longitude: -74.0044,
     categories: ["Charging", "Food", "Need Help", "General Update"]
   },
   {
     name: "Gym",
-    address: "55 Athletics Drive, RescueMesh Campus",
+    address: "55 Athletics Drive, RescueMe Campus",
     latitude: 40.715,
     longitude: -74.0039,
     categories: ["First Aid", "Shelter", "Water", "Need Help"]
   },
   {
     name: "Health Center",
-    address: "18 Wellness Way, RescueMesh Campus",
+    address: "18 Wellness Way, RescueMe Campus",
     latitude: 40.7142,
     longitude: -74.0028,
     categories: ["First Aid", "Need Help", "General Update"]
   },
   {
     name: "Police Station",
-    address: "12 Safety Road, RescueMesh Campus",
+    address: "12 Safety Road, RescueMe Campus",
     latitude: 40.7162,
     longitude: -74.0066,
     categories: ["General Update", "Need Help", "Dangerous Area"]
   },
   {
     name: "Main Entrance",
-    address: "1 Main Entrance Road, RescueMesh Campus",
+    address: "1 Main Entrance Road, RescueMe Campus",
     latitude: 40.7122,
     longitude: -74.0082,
     categories: ["Blocked Road", "Dangerous Area", "General Update"]
   },
   {
     name: "Parking Lot 4",
-    address: "400 West Parking Loop, RescueMesh Campus",
+    address: "400 West Parking Loop, RescueMe Campus",
     latitude: 40.7109,
     longitude: -74.0071,
     categories: ["Dangerous Area", "Blocked Road", "Need Help"]
   },
   {
     name: "Shelter Area",
-    address: "75 Shelter Field Lane, RescueMesh Campus",
+    address: "75 Shelter Field Lane, RescueMe Campus",
     latitude: 40.713,
     longitude: -74.0015,
     categories: ["Shelter", "Food", "Water", "Need Help"]
   },
   {
     name: "Dining Hall",
-    address: "31 Dining Hall Court, RescueMesh Campus",
+    address: "31 Dining Hall Court, RescueMe Campus",
     latitude: 40.7124,
     longitude: -74.0032,
     categories: ["Food", "Water", "Charging", "General Update"]

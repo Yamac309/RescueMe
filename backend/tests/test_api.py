@@ -11,11 +11,11 @@ from app.main import RATE_LIMITS, app
 @pytest.fixture()
 def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> TestClient:
     db_path = tmp_path / "test.db"
-    monkeypatch.setenv("RESCUEMESH_DB_PATH", str(db_path))
-    monkeypatch.setenv("RESCUEMESH_DISABLE_RATE_LIMITING", "true")
-    monkeypatch.delenv("RESCUEMESH_PUBLIC_MODE", raising=False)
-    monkeypatch.delenv("RESCUEMESH_ADMIN_TOKEN", raising=False)
-    monkeypatch.delenv("RESCUEMESH_RESPONDER_TOKEN", raising=False)
+    monkeypatch.setenv("RESCUEME_DB_PATH", str(db_path))
+    monkeypatch.setenv("RESCUEME_DISABLE_RATE_LIMITING", "true")
+    monkeypatch.delenv("RESCUEME_PUBLIC_MODE", raising=False)
+    monkeypatch.delenv("RESCUEME_ADMIN_TOKEN", raising=False)
+    monkeypatch.delenv("RESCUEME_RESPONDER_TOKEN", raising=False)
     RATE_LIMITS.clear()
     database.init_db()
     return TestClient(app)
@@ -43,12 +43,12 @@ def report_with(report_id: str, **overrides) -> dict:
 def test_report_creation(client: TestClient) -> None:
     response = client.post(
         "/reports",
-        json={**sample_report(), "location_name": "Library", "location_address": "100 Library Walk, RescueMesh Campus"},
+        json={**sample_report(), "location_name": "Library", "location_address": "100 Library Walk, RescueMe Campus"},
     )
     assert response.status_code == 201
     assert response.json()["report_id"] == "local-report-1"
     assert response.json()["location_name"] == "Library"
-    assert response.json()["location_address"] == "100 Library Walk, RescueMesh Campus"
+    assert response.json()["location_address"] == "100 Library Walk, RescueMe Campus"
 
     reports = client.get("/reports").json()
     assert len(reports) == 1
@@ -233,7 +233,7 @@ def test_geocode_returns_known_locations_without_remote_lookup(client: TestClien
     body = response.json()
     assert body[0]["name"] == "Library"
     assert body[0]["source"] == "known-location"
-    assert body[0]["address"] == "100 Library Walk, RescueMesh Campus"
+    assert body[0]["address"] == "100 Library Walk, RescueMe Campus"
     assert body[0]["latitude"] == 40.7136
 
 
@@ -247,8 +247,8 @@ def test_geocode_returns_usf_for_broad_campus_query(client: TestClient) -> None:
 
 
 def test_public_mode_requires_admin_token_for_delete(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("RESCUEMESH_PUBLIC_MODE", "true")
-    monkeypatch.setenv("RESCUEMESH_ADMIN_TOKEN", "secret-token")
+    monkeypatch.setenv("RESCUEME_PUBLIC_MODE", "true")
+    monkeypatch.setenv("RESCUEME_ADMIN_TOKEN", "secret-token")
     client.post("/reports", json=sample_report())
 
     blocked = client.delete("/reports")
@@ -260,8 +260,8 @@ def test_public_mode_requires_admin_token_for_delete(client: TestClient, monkeyp
 
 
 def test_public_mode_requires_responder_token_for_responder_actions(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("RESCUEMESH_PUBLIC_MODE", "true")
-    monkeypatch.setenv("RESCUEMESH_RESPONDER_TOKEN", "responder-secret")
+    monkeypatch.setenv("RESCUEME_PUBLIC_MODE", "true")
+    monkeypatch.setenv("RESCUEME_RESPONDER_TOKEN", "responder-secret")
     client.post("/reports", json=sample_report())
 
     blocked = client.post("/reports/local-report-1/responder-verify")
@@ -281,7 +281,7 @@ def test_security_headers_are_set(client: TestClient) -> None:
 
 
 def test_rate_limiting_can_block_request_bursts(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("RESCUEMESH_DISABLE_RATE_LIMITING", raising=False)
+    monkeypatch.delenv("RESCUEME_DISABLE_RATE_LIMITING", raising=False)
     RATE_LIMITS.clear()
 
     responses = [client.post("/reports", json=sample_report(f"rate-limit-{index}")) for index in range(31)]
@@ -438,9 +438,10 @@ def test_incident_guidance_uses_local_fallback_without_google_key(client: TestCl
     body = response.json()
     assert response.status_code == 200
     assert body["source"] == "local-fallback"
-    assert body["should_do"]
-    assert body["avoid"]
+    assert body["should_do"] == []
+    assert body["avoid"] == []
     assert body["unavailable_reason"] == "Gemini is not configured on this backend."
+    assert "Follow official responder instructions" in body["safety_note"]
 
 
 def test_ai_status_reports_google_ai_configuration(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:

@@ -43,7 +43,7 @@ from .schemas import (
 
 load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
-app = FastAPI(title="RescueMesh Node", version="0.1.0")
+app = FastAPI(title="RescueMe Node", version="0.1.0")
 RATE_LIMITS: dict[tuple[str, str], deque[float]] = defaultdict(deque)
 DEFAULT_CORS_ORIGIN_REGEX = (
     r"https?://(localhost|127\.0\.0\.1|"
@@ -60,8 +60,8 @@ DEMO_REPORT_TITLES = [
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[origin.strip() for origin in os.getenv("RESCUEMESH_CORS_ORIGINS", "").split(",") if origin.strip()],
-    allow_origin_regex=os.getenv("RESCUEMESH_CORS_ORIGIN_REGEX", DEFAULT_CORS_ORIGIN_REGEX),
+    allow_origins=[origin.strip() for origin in os.getenv("RESCUEME_CORS_ORIGINS", "").split(",") if origin.strip()],
+    allow_origin_regex=os.getenv("RESCUEME_CORS_ORIGIN_REGEX", DEFAULT_CORS_ORIGIN_REGEX),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -105,7 +105,7 @@ def utc_now() -> str:
 
 
 def public_mode_enabled() -> bool:
-    return os.getenv("RESCUEMESH_PUBLIC_MODE", "").lower() in {"1", "true", "yes"}
+    return os.getenv("RESCUEME_PUBLIC_MODE", "").lower() in {"1", "true", "yes"}
 
 
 def token_matches(expected: str | None, provided: str | None) -> bool:
@@ -113,7 +113,7 @@ def token_matches(expected: str | None, provided: str | None) -> bool:
 
 
 def require_admin_token(x_admin_token: str | None = Header(default=None)) -> None:
-    admin_token = os.getenv("RESCUEMESH_ADMIN_TOKEN")
+    admin_token = os.getenv("RESCUEME_ADMIN_TOKEN")
 
     if not public_mode_enabled() and not admin_token:
         return
@@ -127,8 +127,8 @@ def require_responder_token(
     x_responder_token: str | None = Header(default=None),
     x_admin_token: str | None = Header(default=None),
 ) -> None:
-    responder_token = os.getenv("RESCUEMESH_RESPONDER_TOKEN")
-    admin_token = os.getenv("RESCUEMESH_ADMIN_TOKEN")
+    responder_token = os.getenv("RESCUEME_RESPONDER_TOKEN")
+    admin_token = os.getenv("RESCUEME_ADMIN_TOKEN")
 
     if not public_mode_enabled() and not responder_token and not admin_token:
         return
@@ -146,7 +146,7 @@ def client_key_from_request(request: Request) -> str:
 
 
 def check_rate_limit(client_key: str, bucket: str, limit: int, window_seconds: int) -> None:
-    if os.getenv("RESCUEMESH_DISABLE_RATE_LIMITING", "").lower() in {"1", "true", "yes"}:
+    if os.getenv("RESCUEME_DISABLE_RATE_LIMITING", "").lower() in {"1", "true", "yes"}:
         return
     now = time.monotonic()
     events = RATE_LIMITS[(bucket, client_key)]
@@ -165,7 +165,7 @@ def rate_limiter(bucket: str, limit: int, window_seconds: int):
 
 
 def https_required() -> bool:
-    return os.getenv("RESCUEMESH_REQUIRE_HTTPS", "").lower() in {"1", "true", "yes"}
+    return os.getenv("RESCUEME_REQUIRE_HTTPS", "").lower() in {"1", "true", "yes"}
 
 
 def request_is_https(request: Request) -> bool:
@@ -204,7 +204,7 @@ def on_startup() -> None:
 
 @app.get("/health")
 def health() -> dict:
-    return {"status": "ok", "service": "RescueMesh Node"}
+    return {"status": "ok", "service": "RescueMe Node"}
 
 
 @app.get("/reports", response_model=list[Report])
@@ -355,7 +355,7 @@ async def delete_all_reports() -> dict:
 @app.get("/node/status", response_model=NodeStatus)
 def node_status() -> dict:
     return {
-        "node_name": os.getenv("RESCUEMESH_NODE_NAME", "RescueMesh Local Node"),
+        "node_name": os.getenv("RESCUEME_NODE_NAME", "RescueMe Local Node"),
         "connected_clients": manager.connected_count,
         "total_reports": database.total_reports(),
         "last_sync_time": database.get_meta("last_sync_time"),
@@ -367,11 +367,11 @@ def node_status() -> dict:
 def security_config() -> dict:
     return {
         "publicMode": public_mode_enabled(),
-        "adminTokenRequired": public_mode_enabled() or bool(os.getenv("RESCUEMESH_ADMIN_TOKEN")),
+        "adminTokenRequired": public_mode_enabled() or bool(os.getenv("RESCUEME_ADMIN_TOKEN")),
         "responderTokenRequired": public_mode_enabled()
-        or bool(os.getenv("RESCUEMESH_RESPONDER_TOKEN"))
-        or bool(os.getenv("RESCUEMESH_ADMIN_TOKEN")),
-        "rateLimitingEnabled": os.getenv("RESCUEMESH_DISABLE_RATE_LIMITING", "").lower() not in {"1", "true", "yes"},
+        or bool(os.getenv("RESCUEME_RESPONDER_TOKEN"))
+        or bool(os.getenv("RESCUEME_ADMIN_TOKEN")),
+        "rateLimitingEnabled": os.getenv("RESCUEME_DISABLE_RATE_LIMITING", "").lower() not in {"1", "true", "yes"},
         "httpsRequired": https_required(),
         "corsRestricted": True,
     }
@@ -447,7 +447,7 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
         return
     await manager.connect(websocket)
     try:
-        await websocket.send_json({"type": "node:hello", "message": "Connected to RescueMesh Node"})
+        await websocket.send_json({"type": "node:hello", "message": "Connected to RescueMe Node"})
         while True:
             # Keep the socket open. Later mesh transports can feed node-to-node messages here.
             # TODO: Bridge Bluetooth, Wi-Fi Direct, Raspberry Pi, or LoRa node events into this stream.

@@ -1,10 +1,20 @@
 import { normalizeReport } from "../utils/reportUtils";
 
-const DB_NAME = "rescuemesh-db";
-const DB_VERSION = 2;
+const DB_NAME = "rescueme-db";
+const DB_VERSION = 3;
 const REPORT_STORE = "reports";
 const ACTION_STORE = "queuedActions";
 const IGNORED_REPORT_STORE = "ignoredReports";
+const COMMENT_STORE = "comments";
+
+function normalizeComment(comment) {
+  return {
+    ...comment,
+    body: comment.body || "",
+    image_data_url: comment.image_data_url || "",
+    sync_state: comment.sync_state || "synced"
+  };
+}
 
 function openDatabase() {
   return new Promise((resolve, reject) => {
@@ -22,6 +32,11 @@ function openDatabase() {
       }
       if (!db.objectStoreNames.contains(IGNORED_REPORT_STORE)) {
         db.createObjectStore(IGNORED_REPORT_STORE, { keyPath: "report_id" });
+      }
+      if (!db.objectStoreNames.contains(COMMENT_STORE)) {
+        const comments = db.createObjectStore(COMMENT_STORE, { keyPath: "comment_id" });
+        comments.createIndex("report_id", "report_id");
+        comments.createIndex("timestamp", "timestamp");
       }
     };
 
@@ -81,6 +96,85 @@ export async function deleteReportsByIds(reportIds) {
       resolve();
     };
     transaction.onerror = () => reject(transaction.error);
+  });
+}
+
+export async function getAllComments() {
+  const { db, store } = await storeTransaction(COMMENT_STORE);
+  return new Promise((resolve, reject) => {
+    const request = store.getAll();
+    request.onsuccess = () => {
+      db.close();
+      resolve(request.result.map(normalizeComment));
+    };
+    request.onerror = () => reject(request.error);
+  });
+}
+
+export async function getCommentsByReportId(reportId) {
+  const { db, store } = await storeTransaction(COMMENT_STORE);
+  return new Promise((resolve, reject) => {
+    const index = store.index("report_id");
+    const request = index.getAll(reportId);
+    request.onsuccess = () => {
+      db.close();
+      resolve(request.result.map(normalizeComment));
+    };
+    request.onerror = () => reject(request.error);
+  });
+}
+
+export async function saveComment(comment) {
+  const { db, transaction, store } = await storeTransaction(COMMENT_STORE, "readwrite");
+  return new Promise((resolve, reject) => {
+    const normalized = normalizeComment(comment);
+    const request = store.put(normalized);
+    request.onsuccess = () => resolve(normalized);
+    request.onerror = () => reject(request.error);
+    transaction.oncomplete = () => db.close();
+  });
+}
+
+export async function saveComments(comments) {
+  if (!comments.length) return;
+  const { db, transaction, store } = await storeTransaction(COMMENT_STORE, "readwrite");
+  return new Promise((resolve, reject) => {
+    comments.forEach((comment) => store.put(normalizeComment(comment)));
+    transaction.oncomplete = () => {
+      db.close();
+      resolve();
+    };
+    transaction.onerror = () => reject(transaction.error);
+  });
+}
+
+export async function deleteCommentsByReportIds(reportIds) {
+  if (!reportIds.length) return;
+  const comments = await getAllComments();
+  const reportIdSet = new Set(reportIds);
+  const commentIds = comments
+    .filter((comment) => reportIdSet.has(comment.report_id))
+    .map((comment) => comment.comment_id);
+  if (!commentIds.length) return;
+
+  const { db, transaction, store } = await storeTransaction(COMMENT_STORE, "readwrite");
+  return new Promise((resolve, reject) => {
+    commentIds.forEach((commentId) => store.delete(commentId));
+    transaction.oncomplete = () => {
+      db.close();
+      resolve();
+    };
+    transaction.onerror = () => reject(transaction.error);
+  });
+}
+
+export async function clearComments() {
+  const { db, transaction, store } = await storeTransaction(COMMENT_STORE, "readwrite");
+  return new Promise((resolve, reject) => {
+    const request = store.clear();
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error);
+    transaction.oncomplete = () => db.close();
   });
 }
 
@@ -186,7 +280,7 @@ export async function deleteQueuedAction(id) {
 }
 
 export function getDeviceId() {
-  const key = "rescuemesh-device-id";
+  const key = "rescueme-device-id";
   let deviceId = localStorage.getItem(key);
   if (!deviceId) {
     deviceId = `device-${crypto.randomUUID()}`;

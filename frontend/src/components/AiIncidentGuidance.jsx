@@ -4,7 +4,7 @@ import { getIncidentGuidance } from "../api/client";
 
 function cacheKeyFor(report) {
   return [
-    "rescuemesh-ai-guidance",
+    "rescueme-ai-guidance",
     report.report_id,
     report.title,
     report.description || "",
@@ -15,79 +15,6 @@ function cacheKeyFor(report) {
     report.verificationLabel || "",
     report.confidenceScore ?? ""
   ].join(":");
-}
-
-function localPreviewGuidance(report) {
-  const guidanceByCategory = {
-    "Need Help": {
-      should_do: [
-        "If anyone is in immediate danger, call emergency services first.",
-        "Move to the safest nearby place and share the report location with responders.",
-        "Keep your phone available for emergency calls and updates."
-      ],
-      avoid: [
-        "Do not enter unstable buildings, floodwater, or blocked areas.",
-        "Do not separate from your group unless a responder directs you.",
-        "Do not post private personal details in public updates."
-      ]
-    },
-    "Dangerous Area": {
-      should_do: [
-        "Warn people away from the area and share a safer route.",
-        "Move uphill or upwind if flooding, smoke, gas, or chemicals may be involved.",
-        "Update the report when trusted information changes."
-      ],
-      avoid: [
-        "Do not enter the area to take photos or check conditions.",
-        "Do not cross floodwater, unstable ground, or taped-off zones.",
-        "Do not spread unconfirmed hazard details as fact."
-      ]
-    },
-    "Blocked Road": {
-      should_do: [
-        "Report the exact blockage location and safest alternate route.",
-        "Keep people and vehicles back from debris, wires, and unstable trees.",
-        "Leave room for emergency vehicles and road crews."
-      ],
-      avoid: [
-        "Do not drive around barricades or through debris fields.",
-        "Do not touch downed wires or objects touching them.",
-        "Do not move heavy debris without proper equipment."
-      ]
-    },
-    "First Aid": {
-      should_do: [
-        "Call emergency services for severe bleeding, breathing trouble, chest pain, or unconsciousness.",
-        "Keep the injured person still, warm, and away from hazards.",
-        "Use trained first aid help if available."
-      ],
-      avoid: [
-        "Do not move someone with a possible neck or spine injury unless they are in immediate danger.",
-        "Do not give food or drink to an unconscious or severely injured person.",
-        "Do not attempt advanced care without training."
-      ]
-    }
-  };
-  const guidance = guidanceByCategory[report.category] || {
-    should_do: [
-      "Keep the update short, specific, and tied to a location.",
-      "Include what changed and when it was observed.",
-      "Refresh the report if conditions change."
-    ],
-    avoid: [
-      "Do not include rumors, private details, or unclear secondhand claims.",
-      "Do not mark the update confirmed without a trusted source.",
-      "Do not duplicate older reports when an update would be clearer."
-    ]
-  };
-
-  return {
-    ...guidance,
-    safety_note: "Local safety guidance shown while Gemini responds. Follow official responder instructions when available.",
-    source: "local-fallback",
-    model: null,
-    unavailable_reason: null
-  };
 }
 
 export default function AiIncidentGuidance({ report }) {
@@ -172,18 +99,12 @@ export default function AiIncidentGuidance({ report }) {
     if (requestRef.current) requestRef.current.abort();
     const controller = new AbortController();
     requestRef.current = controller;
-    const previewId = window.setTimeout(() => {
-      if (controller.signal.aborted || !mountedRef.current) return;
-      setGuidance(localPreviewGuidance(report));
-      setState("ready");
-    }, 1200);
     const timeoutId = window.setTimeout(() => controller.abort(), 10000);
 
     setState("loading");
     getIncidentGuidance(guidancePayload, { signal: controller.signal })
       .then((nextGuidance) => {
         if (controller.signal.aborted || !mountedRef.current) return;
-        window.clearTimeout(previewId);
         try {
           const serialized = JSON.stringify({ guidance: nextGuidance, cachedAt: Date.now() });
           if (nextGuidance.source === "google-ai") localStorage.setItem(cacheKey, serialized);
@@ -195,17 +116,22 @@ export default function AiIncidentGuidance({ report }) {
       })
       .catch((error) => {
         if (!mountedRef.current) return;
-        window.clearTimeout(previewId);
         if (controller.signal.aborted) {
-          setGuidance(localPreviewGuidance(report));
-          setState("ready");
+          setGuidance({
+            should_do: [],
+            avoid: [],
+            safety_note: "Gemini took too long to respond. Try again in a moment.",
+            source: "local-fallback",
+            model: null,
+            unavailable_reason: "Gemini request timed out."
+          });
+          setState("error");
           return;
         }
         console.error("Gemini guidance request failed", error);
         setState("error");
       })
       .finally(() => {
-        window.clearTimeout(previewId);
         window.clearTimeout(timeoutId);
         if (requestRef.current === controller) requestRef.current = null;
       });
@@ -232,7 +158,7 @@ export default function AiIncidentGuidance({ report }) {
         <div className="ai-guidance-title">
           <Sparkles size={16} /> Incident guidance
         </div>
-        <p className="ai-guidance-loading">Generating incident-specific guidance with Gemini...</p>
+        <p className="ai-guidance-loading">Generating incident-specific guidance with Gemini. This can take a few seconds...</p>
       </section>
     );
   }
@@ -244,7 +170,7 @@ export default function AiIncidentGuidance({ report }) {
           <Sparkles size={16} /> Incident guidance
         </div>
         <p className="ai-guidance-loading">
-          {guidance?.unavailable_reason || "Gemini guidance is unavailable right now."}
+          {guidance?.unavailable_reason || guidance?.safety_note || "Gemini guidance is unavailable right now."}
         </p>
         <button type="button" className="secondary ai-guidance-button" onClick={generateGuidance} disabled={state === "loading"}>
           <Sparkles size={16} /> Try Gemini Again
@@ -272,7 +198,7 @@ export default function AiIncidentGuidance({ report }) {
     <section className="ai-guidance-panel">
       <div className="ai-guidance-title">
         <Sparkles size={16} /> Incident guidance
-        <span>{guidance.source === "google-ai" ? "Google AI" : "Local safety guide"}</span>
+        <span>{guidance.source === "google-ai" ? "Google AI" : "Gemini unavailable"}</span>
       </div>
       <div className="ai-guidance-grid">
         <div>

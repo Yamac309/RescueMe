@@ -4,7 +4,7 @@ const DUPLICATE_WINDOW_MS = 6 * 60 * 60 * 1000;
 const DUPLICATE_DISTANCE_METERS = 250;
 const NEARBY_MATCH_DISTANCE_METERS = 300;
 const NEARBY_MATCH_WINDOW_MS = 24 * 60 * 60 * 1000;
-export const DEMO_TIME_OFFSET_KEY = "rescuemesh-demo-time-offset-hours";
+export const DEMO_TIME_OFFSET_KEY = "rescueme-demo-time-offset-hours";
 
 const DEFAULT_EMERGENCY_ZONE = {
   minLatitude: USA_BOUNDS[0][0],

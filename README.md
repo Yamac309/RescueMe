@@ -1,6 +1,6 @@
-# RescueMesh
+# RescueMe
 
-RescueMesh is an offline-first emergency communication and resource mapping platform. It lets people create local incident reports for help requests, water, food, shelter, first aid, charging, blocked roads, dangerous areas, and general updates even when internet or cellular service is unavailable.
+RescueMe is an offline-first emergency communication and resource mapping platform. It lets people create local incident reports for help requests, water, food, shelter, first aid, charging, blocked roads, dangerous areas, and general updates even when internet or cellular service is unavailable.
 
 The MVP uses browser IndexedDB for device-first storage, a FastAPI/SQLite local node for persistence, WebSockets for real-time LAN updates, and a satellite-first emergency map. It can use Apple MapKit JS when you provide a MapKit token, and otherwise falls back to a free Leaflet satellite map.
 
@@ -14,7 +14,7 @@ During storms, earthquakes, campus incidents, large events, or infrastructure ou
 - where first aid or charging is available
 - what reports have been confirmed or resolved
 
-RescueMesh treats every browser as a local-first field notebook. Reports are generated with globally unique IDs on the device, stored locally first, and synced with a nearby RescueMesh Node when one is reachable on the same Wi-Fi/LAN.
+RescueMe treats every browser as a local-first field notebook. Reports are generated with globally unique IDs on the device, stored locally first, and synced with a nearby RescueMe Node when one is reachable on the same Wi-Fi/LAN.
 
 ## Tech Stack
 
@@ -31,7 +31,7 @@ RescueMesh treats every browser as a local-first field notebook. Reports are gen
 ## Project Structure
 
 ```text
-rescuemesh/
+rescueme/
   backend/
     app/
       config/
@@ -100,7 +100,7 @@ export GOOGLE_AI_API_KEY=your_google_ai_studio_key
 export GOOGLE_AI_MODEL=gemini-2.5-flash-lite
 ```
 
-`GOOGLE_AI_API_KEY` is only read by the FastAPI backend. Do not put it in the frontend `.env` file. If the key is missing, RescueMesh still runs and shows a clear Gemini-unavailable state instead of prewritten advice. You can check the active backend mode at `GET /ai/status`.
+`GOOGLE_AI_API_KEY` is only read by the FastAPI backend. Do not put it in the frontend `.env` file. If the key is missing, RescueMe still runs and shows a clear Gemini-unavailable state instead of prewritten advice. You can check the active backend mode at `GET /ai/status`.
 
 Optional MongoDB Atlas live incidents:
 
@@ -108,7 +108,7 @@ Optional MongoDB Atlas live incidents:
 cp backend/.env.example backend/.env
 # Add your Atlas connection string. Keep this value on the backend only.
 MONGODB_URI=mongodb+srv://USER:PASSWORD@CLUSTER.mongodb.net/?retryWrites=true&w=majority
-MONGODB_DATABASE=rescuemesh
+MONGODB_DATABASE=rescueme
 MONGODB_LIVE_INCIDENTS_COLLECTION=live_incidents
 ```
 
@@ -150,17 +150,17 @@ The repo includes a root `Dockerfile` and `render.yaml` for a one-service Render
 3. Use the included `render.yaml`.
 4. After deploy, open the generated `https://...onrender.com` URL.
 
-The public deployment sets `RESCUEMESH_PUBLIC_MODE=true`, which requires an admin token for destructive endpoints like `DELETE /reports` and a responder token for responder review actions. Public visitors can add, view, confirm, and resolve reports, but they cannot clear all reports or mark reports responder-verified unless they have the configured token.
+The public deployment sets `RESCUEME_PUBLIC_MODE=true`, which requires an admin token for destructive endpoints like `DELETE /reports` and a responder token for responder review actions. Public visitors can add, view, confirm, and resolve reports, but they cannot clear all reports or mark reports responder-verified unless they have the configured token.
 
 Recommended public environment variables:
 
 ```text
-RESCUEMESH_PUBLIC_MODE=true
-RESCUEMESH_ADMIN_TOKEN=choose-a-long-random-admin-token
-RESCUEMESH_RESPONDER_TOKEN=choose-a-long-random-responder-token
-RESCUEMESH_CORS_ORIGINS=https://your-rescuemesh-site.example
-RESCUEMESH_REQUIRE_HTTPS=true
-RESCUEMESH_DISABLE_RATE_LIMITING=false
+RESCUEME_PUBLIC_MODE=true
+RESCUEME_ADMIN_TOKEN=choose-a-long-random-admin-token
+RESCUEME_RESPONDER_TOKEN=choose-a-long-random-responder-token
+RESCUEME_CORS_ORIGINS=https://your-rescueme-site.example
+RESCUEME_REQUIRE_HTTPS=true
+RESCUEME_DISABLE_RATE_LIMITING=false
 ```
 
 In the app, open **Node Status** and save the admin/responder token in the Security Tokens panel for the browser you are using. Tokens are stored only in that browser and sent as request headers.
@@ -168,7 +168,7 @@ In the app, open **Node Status** and save the admin/responder token in the Secur
 The default Render plan in `render.yaml` is free. Free services use ephemeral filesystem storage, so SQLite report data can disappear after restarts or deploys. For persistent public data, switch to a paid Render service, attach a persistent disk, and set:
 
 ```text
-RESCUEMESH_DB_PATH=/var/data/rescuemesh.db
+RESCUEME_DB_PATH=/var/data/rescueme.db
 ```
 
 ## Docker
@@ -190,11 +190,13 @@ Then open `http://localhost:5173`.
 5. Watch the second window receive reports through sync/WebSocket updates.
 6. Temporarily stop the backend, create another report, then restart the backend and click **Sync Now**.
 
-The frontend sends known report IDs and local reports to `/sync`. The backend stores new report IDs, ignores duplicate report IDs, returns reports the client is missing, and broadcasts new/updated reports to connected WebSocket clients.
+The frontend now uses a hybrid local-first sync model. Reports, comments, confirmations, and resolutions are saved in IndexedDB first, then uploaded in the background when the node is reachable. The Node Status card shows a stable sync queue state such as `Saved locally`, `Pending upload`, `Syncing`, or `Synced` instead of switching the whole app between online/offline modes.
+
+The frontend sends known report IDs and local reports to `/sync`. The backend stores new report IDs, ignores duplicate report IDs, returns reports the client is missing, and broadcasts new/updated reports to connected WebSocket clients. Queued comments and local actions replay after reports sync.
 
 ## Multi-Signal Report Verification
 
-RescueMesh does not trust reports only because people click confirm. In emergencies, false or outdated information can be dangerous, so the verification engine helps users and responders quickly understand whether a report is fresh, trusted, suspicious, stale, or officially verified.
+RescueMe does not trust reports only because people click confirm. In emergencies, false or outdated information can be dangerous, so the verification engine helps users and responders quickly understand whether a report is fresh, trusted, suspicious, stale, or officially verified.
 
 Each report receives:
 
@@ -238,16 +240,16 @@ The UI shows confidence, verification label, aging label, evidence, warnings, so
 
 ## Security Hardening
 
-RescueMesh now includes MVP security controls intended for demos and small public prototypes:
+RescueMe now includes MVP security controls intended for demos and small public prototypes:
 
 - parameterized SQLite queries to reduce SQL injection risk
 - Pydantic validation for report fields, coordinates, comments, images, and bounded sync payloads
 - admin token protection for destructive routes
 - responder token protection for responder verify/reject/note routes
 - simple in-memory rate limiting for report creation, sync, confirmations, comments, geocoding, AI guidance, deletes, responder actions, and WebSocket connection bursts
-- restricted CORS defaults for localhost/LAN testing, with `RESCUEMESH_CORS_ORIGINS` for production domains
+- restricted CORS defaults for localhost/LAN testing, with `RESCUEME_CORS_ORIGINS` for production domains
 - security headers including `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`, and a Content Security Policy
-- optional HTTPS/WSS enforcement with `RESCUEMESH_REQUIRE_HTTPS=true`
+- optional HTTPS/WSS enforcement with `RESCUEME_REQUIRE_HTTPS=true`
 - server-side image data URL validation that allows PNG, JPEG, WebP, and GIF but rejects SVG data URLs
 - frontend image compression before pasted comment images are stored, which strips most metadata in the browser canvas step
 - Gemini API keys remain backend-only environment variables and are not shipped to the frontend
@@ -265,16 +267,18 @@ The app intentionally avoids real names and personal profiles. Anonymous device 
 
 ## AI Incident Guidance
 
-Report cards include incident-specific guidance with “Best things to do” and “Avoid” lists. When `GOOGLE_AI_API_KEY` is configured on the backend, RescueMesh calls Google Gemini through the `generateContent` API using the `gemini-2.5-flash-lite` model by default. The frontend never receives the API key.
+Report cards include incident-specific guidance with “Best things to do” and “Avoid” lists. When `GOOGLE_AI_API_KEY` is configured on the backend, RescueMe calls Google Gemini through the `generateContent` API using the `gemini-2.5-flash-lite` model by default. The frontend never receives the API key.
 
 If Google AI is not configured, unavailable, or rate limited, the backend returns a short “Gemini guidance is unavailable” state instead of showing prewritten advice. That keeps the guidance section clearly AI-powered.
 
 ## MVP Features
 
 - Offline-first emergency report creation
+- Hybrid background sync with local save, pending upload, and retry states
 - Locally generated globally unique report IDs
 - Device ID stored in browser localStorage
 - IndexedDB report persistence after refresh/offline usage
+- IndexedDB comment persistence for typed or pasted-image comments before upload
 - FastAPI backend with SQLite persistence
 - LAN-style sync through `/sync`
 - WebSocket broadcasts for new and updated reports

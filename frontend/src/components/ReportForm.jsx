@@ -32,7 +32,7 @@ export default function ReportForm({ deviceId, reports = [], onSubmit }) {
   function applyLocationSuggestion(suggestion) {
     if (!isInsideUsaBounds(suggestion)) {
       setMessageTone("warning");
-      setMessage("RescueMesh is currently limited to U.S. incident locations.");
+      setMessage("RescueMe is currently limited to U.S. incident locations.");
       return;
     }
     setForm((cur) => ({
@@ -177,7 +177,7 @@ export default function ReportForm({ deviceId, reports = [], onSubmit }) {
 
     if (!isInsideUsaBounds(report)) {
       setMessageTone("warning");
-      setMessage("RescueMesh is currently limited to U.S. incident locations. Choose coordinates inside the U.S. operating area.");
+      setMessage("RescueMe is currently limited to U.S. incident locations. Choose coordinates inside the U.S. operating area.");
       return;
     }
 

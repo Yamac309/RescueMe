@@ -33,18 +33,18 @@ let mapKitLoadPromise;
 
 function loadMapKit() {
   if (!APPLE_MAPS_ENABLED) return Promise.reject(new Error("MapKit token is not configured."));
-  if (window.mapkit && window.__rescueMeshMapKitReady) return Promise.resolve(window.mapkit);
+  if (window.mapkit && window.__rescueMeMapKitReady) return Promise.resolve(window.mapkit);
   if (mapKitLoadPromise) return mapKitLoadPromise;
 
   mapKitLoadPromise = new Promise((resolve, reject) => {
-    const existingScript = document.querySelector("script[data-rescuemesh-mapkit]");
+    const existingScript = document.querySelector("script[data-rescueme-mapkit]");
     const script = existingScript || document.createElement("script");
 
     script.addEventListener("load", () => {
       if (!window.mapkit) { reject(new Error("MapKit JS did not load.")); return; }
-      if (!window.__rescueMeshMapKitReady) {
+      if (!window.__rescueMeMapKitReady) {
         window.mapkit.init({ authorizationCallback(done) { done(MAPKIT_TOKEN); } });
-        window.__rescueMeshMapKitReady = true;
+        window.__rescueMeMapKitReady = true;
       }
       resolve(window.mapkit);
     }, { once: true });
@@ -54,7 +54,7 @@ function loadMapKit() {
     if (!existingScript) {
       script.src = "https://cdn.apple-mapkit.com/mk/5.x.x/mapkit.js";
       script.crossOrigin = "anonymous";
-      script.dataset.rescuemeshMapkit = "true";
+      script.dataset.rescuemeMapkit = "true";
       document.head.appendChild(script);
     }
   });
